@@ -22,14 +22,23 @@
 const int LEFT = 10;
 const int WIDTH = 80;
 
-// 餐桌状态：空闲 -> 使用中 -> 待结账 -> 空闲。
+/*
+    餐桌状态枚举：
+    enum 可以给一组整数状态起有意义的名字。
+
+    状态流转：
+    TABLE_IDLE -> TABLE_USING -> TABLE_WAIT_PAY -> TABLE_IDLE
+*/
 enum TableStatus {
     TABLE_IDLE = 0,
     TABLE_USING = 1,
     TABLE_WAIT_PAY = 2
 };
 
-// 订单状态：已结账订单计入营收；已取消订单保留记录但不计入营收。
+/*
+    订单状态枚举：
+    已结账订单计入营收；已取消订单保留记录但不计入营收。
+*/
 enum OrderStatus {
     ORDER_ACTIVE = 0,
     ORDER_WAIT_PAY = 1,
@@ -37,7 +46,13 @@ enum OrderStatus {
     ORDER_CANCELLED = 3
 };
 
-// 用户链表节点：保存登录账号、密码、角色和显示姓名。
+/*
+    用户链表节点：
+    每个 UserNode 表示一个系统账号。
+
+    链表结构说明：
+    next 指向下一个用户节点；如果 next 为 NULL，表示这是链表最后一个节点。
+*/
 struct UserNode {
     std::string username;
     std::string password;
@@ -46,7 +61,13 @@ struct UserNode {
     UserNode* next;
 };
 
-// 菜品链表节点：保存菜单、库存和累计销量。
+/*
+    菜品链表节点：
+    保存菜单基础资料、库存和累计销量。
+
+    注意：
+    stock 会随着点菜、退菜变化；sold 用于销售统计参考。
+*/
 struct DishNode {
     int id;
     std::string name;
@@ -57,7 +78,14 @@ struct DishNode {
     DishNode* next;
 };
 
-// 餐桌链表节点：通过 activeOrderId 与当前未结账订单建立关联。
+/*
+    餐桌链表节点：
+    记录餐桌容量、状态、当前消费金额，以及当前关联订单号。
+
+    关键字段：
+    activeOrderId 把餐桌和订单连接起来。
+    0 表示该餐桌当前没有关联订单。
+*/
 struct TableNode {
     int id;
     int capacity;
@@ -67,7 +95,13 @@ struct TableNode {
     TableNode* next;
 };
 
-// 订单明细链表节点：一个订单下面可以挂多条菜品明细。
+/*
+    订单明细链表节点：
+    一个订单下面可以挂多条菜品明细，每条明细表示一道菜。
+
+    为什么保存 dishName 和 price？
+    因为菜品后续可能改名或改价，历史小票仍要保持下单时的信息。
+*/
 struct OrderItemNode {
     int dishId;
     std::string dishName;
@@ -77,7 +111,13 @@ struct OrderItemNode {
     OrderItemNode* next;
 };
 
-// 订单链表节点：订单本身是一条主记录，items 指向它的明细子链表。
+/*
+    订单链表节点：
+    订单本身是一条主记录，items 指向它的明细子链表。
+
+    主从关系：
+    OrderNode 是“订单主表”，OrderItemNode 是“订单明细表”。
+*/
 struct OrderNode {
     int orderId;
     int tableId;
@@ -90,7 +130,13 @@ struct OrderNode {
     OrderNode* next;
 };
 
-// 四个核心链表头指针。使用 extern 声明，真正的定义在 app_core.cpp 中。
+/*
+    四个核心链表头指针：
+    使用 extern 声明，真正的变量定义在 app_core.cpp 中。
+
+    语法说明：
+    extern 表示“这个变量在别的 .cpp 文件里已经定义了，这里只是声明给大家使用”。
+*/
 extern UserNode* g_users;
 extern DishNode* g_dishes;
 extern TableNode* g_tables;
@@ -101,7 +147,16 @@ extern int g_nextOrderId;
 extern std::string g_currentUsername;
 extern std::string g_currentRole;
 
-// 通用界面和格式化工具。
+/*
+    下面是 app 模块内部函数声明。
+
+    为什么头文件只写声明？
+    - 声明告诉编译器函数名字、参数和返回值。
+    - 真正的函数实现放在对应 .cpp 文件里。
+    - 多个 .cpp 只要包含这个头文件，就能互相调用这些函数。
+*/
+
+// 通用界面和格式化工具，主要实现在 app_core.cpp。
 void printAt(int x, int y, const std::string& text);
 void drawWorkPage(const std::string& title);
 void printLine(int y, const std::string& text);

@@ -7,6 +7,22 @@
 // 本文件负责系统入口、登录流程以及管理员/服务员两级主菜单。
 // 菜单函数只做页面调度，真正的业务修改分别放在 app_admin.cpp 和 app_waiter.cpp。
 
+/*
+    函数用途：
+    系统主菜单入口。
+
+    接口说明：
+    - 无参数。
+    - 无返回值；当用户确认退出系统时函数结束。
+
+    业务流程：
+    1. ensureDataLoaded 确保账号、菜品、餐桌、订单等数据已经加载。
+    2. 显示管理员登录、服务员登录、退出系统三个选项。
+    3. 根据选择跳转到对应登录页面。
+
+    学习重点：
+    这是整个业务系统的入口函数，main.cpp 最终会调用它。
+*/
 void showMainMenu() {
     // 主菜单启动时先加载数据，保证登录账号和业务数据可用。
     ensureDataLoaded();
@@ -33,6 +49,21 @@ void showMainMenu() {
     }
 }
 
+/*
+    函数用途：
+    登录页面，根据角色校验账号密码。
+
+    接口说明：
+    - role："admin" 表示管理员登录；"waiter" 表示服务员登录。
+    - 无返回值。
+
+    业务规则：
+    登录成功后，会把当前账号和角色保存到 g_currentUsername / g_currentRole。
+    退出对应功能菜单后，再清空当前登录信息。
+
+    学习重点：
+    一个登录函数复用两种角色入口，靠 role 参数决定进入哪个菜单。
+*/
 void showLoginDemo(const std::string& role) {
     ensureDataLoaded();
 
@@ -74,6 +105,18 @@ void showLoginDemo(const std::string& role) {
     }
 }
 
+/*
+    函数用途：
+    管理员功能菜单。
+
+    接口说明：
+    - 无参数。
+    - 无返回值。
+
+    菜单特点：
+    这里只负责分发功能，不直接写用户、菜品、餐桌的具体业务逻辑。
+    具体功能在 app_admin.cpp 中实现。
+*/
 void showAdminMenu() {
     // 管理员负责基础资料维护和统计查询。
     std::vector<std::string> items;
@@ -106,6 +149,18 @@ void showAdminMenu() {
     }
 }
 
+/*
+    函数用途：
+    服务员功能菜单。
+
+    接口说明：
+    - 无参数。
+    - 无返回值。
+
+    菜单特点：
+    这里只负责跳转前台业务页面。
+    具体开台、点餐、退菜、结账逻辑在 app_waiter.cpp 中实现。
+*/
 void showWaiterMenu() {
     // 服务员负责前台业务：开台、点餐、退菜、结账。
     std::vector<std::string> items;

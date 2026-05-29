@@ -7,6 +7,26 @@
 // 本文件保存服务员业务：开台点餐、修改订单、退菜、结账和个人统计。
 // 这些函数会频繁调用 app_core.cpp 中的订单规则函数，重点观察库存、订单金额和餐桌状态如何同步变化。
 
+/*
+    函数用途：
+    服务员“开台点餐”的完整流程入口。
+
+    接口说明：
+    - 无参数。
+    - 无返回值，所有结果通过链表数据、txt 文件和界面提示体现。
+
+    业务流程：
+    1. 选择一个空闲餐桌。
+    2. 创建一个新的订单节点，但先不立刻加入订单链表。
+    3. 循环选择菜品和数量，调用 addDishToOrder 扣库存、加明细、重算金额。
+    4. 如果没有点任何菜，删除临时订单，开台取消。
+    5. 如果点了菜，把订单加入 g_orders，并把餐桌改为使用中。
+
+    学习重点：
+    - makeOrder 只负责创建节点。
+    - appendOrder 才是真正把订单放进全局订单链表。
+    - table->activeOrderId 是餐桌和订单之间的连接点。
+*/
 void showOpenTableOrder() {
     ensureDataLoaded();
 
@@ -30,7 +50,7 @@ void showOpenTableOrder() {
     }
 
     OrderNode* order = makeOrder(g_nextOrderId++, tableId, g_currentUsername, ORDER_ACTIVE,
-    0.0, nowText(), "");
+                                 0.0, nowText(), "");
 
     while (true) {
         // 0 作为结束点餐标记，其余编号必须是已存在菜品。
@@ -71,6 +91,28 @@ void showOpenTableOrder() {
     UI::showSuccess("开台点餐完成，订单号：" + std::to_string(order->orderId));
 }
 
+/*
+    函数用途：
+    修改某张餐桌当前未结账订单。
+
+    接口说明：
+    - 无参数。
+    - 无返回值。
+
+    可执行操作：
+    - 查看订单明细。
+    - 追加菜品。
+    - 修改菜品数量。
+    - 删除订单菜品。
+    - 设置为待结账。
+
+    业务注意：
+    已结账订单不能修改，因为它已经成为历史消费记录。
+
+    语法/链表点：
+    修改数量时，订单明细节点 item 来自 findOrderItem。
+    如果数量变成 0，需要调用 updateEmptyOrder 判断订单是否要自动取消。
+*/
 void showModifyOrder() {
     ensureDataLoaded();
 
@@ -189,6 +231,24 @@ void showModifyOrder() {
     }
 }
 
+/*
+    函数用途：
+    服务员退菜处理。
+
+    接口说明：
+    - 无参数。
+    - 无返回值。
+
+    业务流程：
+    1. 根据餐桌号找到当前未结账订单。
+    2. 显示订单小票，让服务员确认订单内容。
+    3. 输入要退的菜品编号和数量。
+    4. 调用 removeOrReduceItem 减少订单明细，并恢复库存。
+    5. 调用 updateEmptyOrder 检查订单是否已经没有菜品。
+
+    学习重点：
+    退菜不是单独建一条“退菜记录”，而是修改订单明细链表。
+*/
 void showReturnDish() {
     ensureDataLoaded();
 
@@ -226,6 +286,25 @@ void showReturnDish() {
     }
 }
 
+/*
+    函数用途：
+    顾客结账。
+
+    接口说明：
+    - 无参数。
+    - 无返回值。
+
+    业务流程：
+    1. 通过餐桌号找到当前订单。
+    2. 展示小票。
+    3. 服务员确认收款。
+    4. 订单状态改为 ORDER_PAID。
+    5. 记录 paidAt 结账时间。
+    6. 餐桌恢复为空闲。
+
+    注意：
+    已结账订单不会恢复库存，因为它代表真实销售。
+*/
 void showCheckoutPage() {
     ensureDataLoaded();
 
@@ -264,6 +343,20 @@ void showCheckoutPage() {
     UI::showSuccess("结账完成，餐桌已释放。");
 }
 
+/*
+    函数用途：
+    统计当前登录服务员的个人业绩。
+
+    接口说明：
+    - 无参数。
+    - 无返回值。
+
+    统计逻辑：
+    遍历 g_orders 订单链表，只统计 order->waiter 等于当前登录账号的订单。
+
+    学习重点：
+    这是一个典型的“遍历链表 + 条件筛选 + 累加统计”的例子。
+*/
 void showPersonalStats() {
     ensureDataLoaded();
 

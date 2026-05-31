@@ -1,0 +1,13 @@
+中小饭店点餐管理系统 - 便携版
+
+使用方法：
+1. 请保持本文件夹中的文件放在一起，不要只单独复制 restaurant.exe。
+2. 双击 restaurant.exe 即可运行。
+3. users.txt、dishes.txt、tables.txt、orders.txt、order_items.txt 是系统数据文件。
+4. 程序运行过程中会自动读取和保存这些 txt 文件。
+5. 如果需要发送给其他人，请压缩并发送整个 release_portable 文件夹。
+
+兼容性说明：
+1. 本版本使用静态链接方式编译，不需要另外安装 MinGW。
+2. 本版本不依赖 libstdc++-6.dll 和 libgcc_s_seh-1.dll。
+3. 本程序是 Windows 控制台程序，适用于 64 位 Windows 电脑。

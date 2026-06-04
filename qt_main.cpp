@@ -1,5 +1,6 @@
 #include "restaurant_backend.hpp"
 
+#include <QtWidgets/QAbstractItemView>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDialog>
@@ -38,8 +39,50 @@ namespace {
     // 创建只读表格单元格，避免用户直接在表格里改数据而绕过后端校验。
     QTableWidgetItem* item(const QString& text) {
         QTableWidgetItem* cell = new QTableWidgetItem(text);
-        cell->setFlags(cell->flags() ^ Qt::ItemIsEditable);
+        cell->setFlags(cell->flags() & ~Qt::ItemIsEditable);
+        cell->setTextAlignment(Qt::AlignCenter);
         return cell;
+    }
+
+    // 统一表格视觉：去掉焦点黄框、禁止直接编辑、数字和文字居中。
+    void configureTable(QTableWidget* table) {
+        table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        table->setFocusPolicy(Qt::NoFocus);
+        table->setSelectionBehavior(QAbstractItemView::SelectRows);
+        table->setSelectionMode(QAbstractItemView::SingleSelection);
+        table->setAlternatingRowColors(true);
+        table->setShowGrid(false);
+        table->verticalHeader()->setVisible(false);
+        table->horizontalHeader()->setDefaultAlignment(Qt::AlignCenter);
+        table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        table->setStyleSheet(
+            "QTableWidget {"
+            "  background: #ffffff;"
+            "  alternate-background-color: #f8fafc;"
+            "  border: 1px solid #d7dee8;"
+            "  border-radius: 6px;"
+            "  outline: 0;"
+            "}"
+            "QTableWidget::item {"
+            "  padding: 6px;"
+            "  border: 0;"
+            "}"
+            "QTableWidget::item:selected {"
+            "  background: #dbeafe;"
+            "  color: #111827;"
+            "}"
+            "QTableWidget::item:focus {"
+            "  border: 0;"
+            "  outline: none;"
+            "}"
+            "QHeaderView::section {"
+            "  background: #edf2f7;"
+            "  border: 0;"
+            "  border-right: 1px solid #d7dee8;"
+            "  padding: 7px;"
+            "  font-weight: 600;"
+            "}"
+        );
     }
 
     // 返回当前表格选中的第一行。所有“修改/删除/加菜”等操作都依赖这个工具函数。
@@ -92,6 +135,8 @@ private:
     QTableWidget* ordersTable_ = 0;
     QTableWidget* orderItemsTable_ = 0;
     QTableWidget* usersTable_ = 0;
+    QTableWidget* dataSummaryTable_ = 0;
+    QTableWidget* dishStatsTable_ = 0;
 
     // 这些按钮只有管理员可用，登录成功后由 applyPermissions() 统一控制。
     QPushButton* addUserButton_ = 0;
@@ -168,6 +213,7 @@ private:
         tabs_->addTab(buildDishesTab(), QString::fromUtf8("菜品"));
         tabs_->addTab(buildTablesTab(), QString::fromUtf8("餐桌"));
         tabs_->addTab(buildOrdersTab(), QString::fromUtf8("订单"));
+        tabs_->addTab(buildDataTab(), QString::fromUtf8("数据查看"));
         tabs_->addTab(buildUsersTab(), QString::fromUtf8("用户"));
 
         root->addLayout(top);
@@ -184,24 +230,19 @@ private:
         dishesTable_->setHorizontalHeaderLabels(QStringList()
             << QString::fromUtf8("编号") << QString::fromUtf8("名称") << QString::fromUtf8("分类")
             << QString::fromUtf8("价格") << QString::fromUtf8("库存") << QString::fromUtf8("已售"));
-        dishesTable_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-        dishesTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-        dishesTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+        configureTable(dishesTable_);
 
         QHBoxLayout* buttons = new QHBoxLayout;
         addDishButton_ = new QPushButton(QString::fromUtf8("新增菜品"));
         editDishButton_ = new QPushButton(QString::fromUtf8("修改菜品"));
         deleteDishButton_ = new QPushButton(QString::fromUtf8("删除菜品"));
-        QPushButton* addToOrder = new QPushButton(QString::fromUtf8("加入订单"));
         connect(addDishButton_, &QPushButton::clicked, this, [this]() { editDish(false); });
         connect(editDishButton_, &QPushButton::clicked, this, [this]() { editDish(true); });
         connect(deleteDishButton_, &QPushButton::clicked, this, [this]() { deleteDish(); });
-        connect(addToOrder, &QPushButton::clicked, this, [this]() { addDishToSelectedOrder(); });
         buttons->addWidget(addDishButton_);
         buttons->addWidget(editDishButton_);
         buttons->addWidget(deleteDishButton_);
         buttons->addStretch();
-        buttons->addWidget(addToOrder);
 
         layout->addLayout(buttons);
         layout->addWidget(dishesTable_);
@@ -217,29 +258,24 @@ private:
         tablesTable_->setHorizontalHeaderLabels(QStringList()
             << QString::fromUtf8("桌号") << QString::fromUtf8("容量") << QString::fromUtf8("状态")
             << QString::fromUtf8("当前金额") << QString::fromUtf8("关联订单"));
-        tablesTable_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-        tablesTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-        tablesTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+        configureTable(tablesTable_);
 
         QHBoxLayout* buttons = new QHBoxLayout;
         addTableButton_ = new QPushButton(QString::fromUtf8("新增餐桌"));
         editTableButton_ = new QPushButton(QString::fromUtf8("修改容量"));
         deleteTableButton_ = new QPushButton(QString::fromUtf8("删除餐桌"));
-        QPushButton* openTable = new QPushButton(QString::fromUtf8("开台"));
-        QPushButton* waitPay = new QPushButton(QString::fromUtf8("设为待结账"));
-        QPushButton* checkout = new QPushButton(QString::fromUtf8("结账"));
+        QPushButton* openTable = new QPushButton(QString::fromUtf8("开台/进入订单"));
+        QPushButton* checkout = new QPushButton(QString::fromUtf8("本桌结账"));
         connect(addTableButton_, &QPushButton::clicked, this, [this]() { editTable(false); });
         connect(editTableButton_, &QPushButton::clicked, this, [this]() { editTable(true); });
         connect(deleteTableButton_, &QPushButton::clicked, this, [this]() { deleteTable(); });
         connect(openTable, &QPushButton::clicked, this, [this]() { openSelectedTable(); });
-        connect(waitPay, &QPushButton::clicked, this, [this]() { markSelectedTableWaitPay(); });
         connect(checkout, &QPushButton::clicked, this, [this]() { checkoutSelectedTable(); });
         buttons->addWidget(addTableButton_);
         buttons->addWidget(editTableButton_);
         buttons->addWidget(deleteTableButton_);
         buttons->addStretch();
         buttons->addWidget(openTable);
-        buttons->addWidget(waitPay);
         buttons->addWidget(checkout);
 
         layout->addLayout(buttons);
@@ -257,28 +293,32 @@ private:
         ordersTable_->setHorizontalHeaderLabels(QStringList()
             << QString::fromUtf8("订单号") << QString::fromUtf8("桌号") << QString::fromUtf8("服务员")
             << QString::fromUtf8("状态") << QString::fromUtf8("金额") << QString::fromUtf8("创建时间"));
-        ordersTable_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-        ordersTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-        ordersTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+        configureTable(ordersTable_);
 
         orderItemsTable_ = new QTableWidget;
         orderItemsTable_->setColumnCount(5);
         orderItemsTable_->setHorizontalHeaderLabels(QStringList()
             << QString::fromUtf8("菜品编号") << QString::fromUtf8("菜品名称") << QString::fromUtf8("数量")
             << QString::fromUtf8("单价") << QString::fromUtf8("小计"));
-        orderItemsTable_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        configureTable(orderItemsTable_);
 
         connect(ordersTable_, &QTableWidget::itemSelectionChanged, this, [this]() { refreshOrderItems(); });
 
         QHBoxLayout* buttons = new QHBoxLayout;
         QPushButton* addDish = new QPushButton(QString::fromUtf8("加菜"));
         QPushButton* returnDish = new QPushButton(QString::fromUtf8("退菜"));
+        QPushButton* waitPay = new QPushButton(QString::fromUtf8("设为待结账"));
+        QPushButton* checkout = new QPushButton(QString::fromUtf8("结账"));
         QPushButton* cancelOrder = new QPushButton(QString::fromUtf8("取消订单"));
         connect(addDish, &QPushButton::clicked, this, [this]() { addDishToSelectedOrder(); });
         connect(returnDish, &QPushButton::clicked, this, [this]() { returnDishFromOrder(); });
+        connect(waitPay, &QPushButton::clicked, this, [this]() { markSelectedOrderWaitPay(); });
+        connect(checkout, &QPushButton::clicked, this, [this]() { checkoutSelectedOrder(); });
         connect(cancelOrder, &QPushButton::clicked, this, [this]() { cancelSelectedOrder(); });
         buttons->addWidget(addDish);
         buttons->addWidget(returnDish);
+        buttons->addWidget(waitPay);
+        buttons->addWidget(checkout);
         buttons->addWidget(cancelOrder);
         buttons->addStretch();
 
@@ -290,6 +330,40 @@ private:
         return page;
     }
 
+    QWidget* buildDataTab() {
+        // 管理员数据页：集中查看经营概览、订单状态和菜品销售数据。
+        QWidget* page = new QWidget;
+        QVBoxLayout* layout = new QVBoxLayout(page);
+
+        QLabel* summaryTitle = new QLabel(QString::fromUtf8("经营数据总览"));
+        QFont titleFont = summaryTitle->font();
+        titleFont.setBold(true);
+        titleFont.setPointSize(12);
+        summaryTitle->setFont(titleFont);
+
+        dataSummaryTable_ = new QTableWidget;
+        dataSummaryTable_->setColumnCount(2);
+        dataSummaryTable_->setHorizontalHeaderLabels(QStringList()
+            << QString::fromUtf8("指标") << QString::fromUtf8("数值"));
+        configureTable(dataSummaryTable_);
+
+        QLabel* dishTitle = new QLabel(QString::fromUtf8("菜品销量与库存"));
+        dishTitle->setFont(titleFont);
+
+        dishStatsTable_ = new QTableWidget;
+        dishStatsTable_->setColumnCount(5);
+        dishStatsTable_->setHorizontalHeaderLabels(QStringList()
+            << QString::fromUtf8("编号") << QString::fromUtf8("名称") << QString::fromUtf8("分类")
+            << QString::fromUtf8("已售") << QString::fromUtf8("库存"));
+        configureTable(dishStatsTable_);
+
+        layout->addWidget(summaryTitle);
+        layout->addWidget(dataSummaryTable_, 1);
+        layout->addWidget(dishTitle);
+        layout->addWidget(dishStatsTable_, 2);
+        return page;
+    }
+
     QWidget* buildUsersTab() {
         // 用户页只给管理员使用；服务员登录后整个标签页会被禁用。
         QWidget* page = new QWidget;
@@ -298,9 +372,7 @@ private:
         usersTable_->setColumnCount(4);
         usersTable_->setHorizontalHeaderLabels(QStringList()
             << QString::fromUtf8("账号") << QString::fromUtf8("密码") << QString::fromUtf8("角色") << QString::fromUtf8("姓名"));
-        usersTable_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-        usersTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-        usersTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+        configureTable(usersTable_);
 
         QHBoxLayout* buttons = new QHBoxLayout;
         addUserButton_ = new QPushButton(QString::fromUtf8("新增用户"));
@@ -353,6 +425,7 @@ private:
         editTableButton_->setEnabled(admin);
         deleteTableButton_->setEnabled(admin);
         tabs_->setTabEnabled(3, admin);
+        tabs_->setTabEnabled(4, admin);
     }
 
     void refreshAll() {
@@ -361,6 +434,7 @@ private:
         refreshTables();
         refreshOrders();
         refreshUsers();
+        refreshDataView();
         refreshOrderItems();
     }
 
@@ -421,6 +495,78 @@ private:
         }
     }
 
+    void refreshDataView() {
+        if (dataSummaryTable_ == 0 || dishStatsTable_ == 0) {
+            return;
+        }
+
+        const std::vector<Backend::Order>& orders = backend_.orders();
+        const std::vector<Backend::Table>& tables = backend_.tables();
+        const std::vector<Backend::Dish>& dishes = backend_.dishes();
+
+        int paidOrders = 0;
+        int activeOrders = 0;
+        int waitPayOrders = 0;
+        int cancelledOrders = 0;
+        double revenue = 0.0;
+        for (size_t i = 0; i < orders.size(); ++i) {
+            if (orders[i].status == Backend::OrderPaid) {
+                ++paidOrders;
+                revenue += orders[i].totalAmount;
+            } else if (orders[i].status == Backend::OrderActive) {
+                ++activeOrders;
+            } else if (orders[i].status == Backend::OrderWaitPay) {
+                ++waitPayOrders;
+            } else {
+                ++cancelledOrders;
+            }
+        }
+
+        int occupiedTables = 0;
+        for (size_t i = 0; i < tables.size(); ++i) {
+            if (tables[i].status != Backend::TableIdle) {
+                ++occupiedTables;
+            }
+        }
+
+        int totalSold = 0;
+        QString topDish = QString::fromUtf8("暂无");
+        int topSold = -1;
+        for (size_t i = 0; i < dishes.size(); ++i) {
+            totalSold += dishes[i].sold;
+            if (dishes[i].sold > topSold) {
+                topSold = dishes[i].sold;
+                topDish = qs(dishes[i].name);
+            }
+        }
+
+        dataSummaryTable_->setRowCount(7);
+        dataSummaryTable_->setItem(0, 0, item(QString::fromUtf8("累计营业额")));
+        dataSummaryTable_->setItem(0, 1, item(qs(Backend::RestaurantBackend::money(revenue))));
+        dataSummaryTable_->setItem(1, 0, item(QString::fromUtf8("已结账订单")));
+        dataSummaryTable_->setItem(1, 1, item(QString::number(paidOrders)));
+        dataSummaryTable_->setItem(2, 0, item(QString::fromUtf8("进行中订单")));
+        dataSummaryTable_->setItem(2, 1, item(QString::number(activeOrders)));
+        dataSummaryTable_->setItem(3, 0, item(QString::fromUtf8("待结账订单")));
+        dataSummaryTable_->setItem(3, 1, item(QString::number(waitPayOrders)));
+        dataSummaryTable_->setItem(4, 0, item(QString::fromUtf8("已取消订单")));
+        dataSummaryTable_->setItem(4, 1, item(QString::number(cancelledOrders)));
+        dataSummaryTable_->setItem(5, 0, item(QString::fromUtf8("占用餐桌")));
+        dataSummaryTable_->setItem(5, 1, item(QString::number(occupiedTables) + "/" + QString::number(tables.size())));
+        dataSummaryTable_->setItem(6, 0, item(QString::fromUtf8("菜品总销量 / 热销菜品")));
+        dataSummaryTable_->setItem(6, 1, item(QString::number(totalSold) + " / " + topDish));
+
+        dishStatsTable_->setRowCount(static_cast<int>(dishes.size()));
+        for (int row = 0; row < static_cast<int>(dishes.size()); ++row) {
+            const Backend::Dish& d = dishes[static_cast<size_t>(row)];
+            dishStatsTable_->setItem(row, 0, item(QString::number(d.id)));
+            dishStatsTable_->setItem(row, 1, item(qs(d.name)));
+            dishStatsTable_->setItem(row, 2, item(qs(d.category)));
+            dishStatsTable_->setItem(row, 3, item(QString::number(d.sold)));
+            dishStatsTable_->setItem(row, 4, item(QString::number(d.stock)));
+        }
+    }
+
     void refreshOrderItems() {
         // 明细表跟随订单表当前选中行变化；没选中订单时清空明细。
         int row = selectedRow(ordersTable_);
@@ -455,6 +601,49 @@ private:
             return -1;
         }
         return table->item(row, column)->text().toInt();
+    }
+
+    const Backend::Order* findOrderById(int orderId) const {
+        const std::vector<Backend::Order>& orders = backend_.orders();
+        for (size_t i = 0; i < orders.size(); ++i) {
+            if (orders[i].orderId == orderId) {
+                return &orders[i];
+            }
+        }
+        return 0;
+    }
+
+    int activeOrderIdForTable(int tableId) const {
+        const std::vector<Backend::Table>& tables = backend_.tables();
+        for (size_t i = 0; i < tables.size(); ++i) {
+            if (tables[i].id == tableId) {
+                return tables[i].activeOrderId;
+            }
+        }
+        return 0;
+    }
+
+    void selectOrderById(int orderId) {
+        for (int row = 0; row < ordersTable_->rowCount(); ++row) {
+            if (ordersTable_->item(row, 0) != 0 && ordersTable_->item(row, 0)->text().toInt() == orderId) {
+                ordersTable_->selectRow(row);
+                refreshOrderItems();
+                return;
+            }
+        }
+    }
+
+    int selectedOrderTableId(const QString& title) {
+        int orderId = selectedOrderId();
+        if (orderId < 0) {
+            return -1;
+        }
+        const Backend::Order* order = findOrderById(orderId);
+        if (order == 0) {
+            QMessageBox::warning(this, title, QString::fromUtf8("没有找到当前订单。"));
+            return -1;
+        }
+        return order->tableId;
     }
 
     void showBackendError(const std::string& error) {
@@ -619,12 +808,25 @@ private:
 
     void openSelectedTable() {
         // 开台需要先选中餐桌；后端会创建订单并把餐桌状态改为使用中。
-        int tableId = selectedInt(tablesTable_, 0, QString::fromUtf8("开台"));
+        int tableId = selectedInt(tablesTable_, 0, QString::fromUtf8("开台/进入订单"));
         if (tableId < 0) return;
+
+        int activeOrderId = activeOrderIdForTable(tableId);
+        if (activeOrderId > 0) {
+            tabs_->setCurrentIndex(2);
+            selectOrderById(activeOrderId);
+            return;
+        }
+
         int orderId = 0;
         std::string error;
-        if (!backend_.openTable(tableId, ss(currentUsername_), orderId, error)) showBackendError(error);
+        if (!backend_.openTable(tableId, ss(currentUsername_), orderId, error)) {
+            showBackendError(error);
+            return;
+        }
         refreshAll();
+        tabs_->setCurrentIndex(2);
+        selectOrderById(orderId);
     }
 
     int selectedOrderId() {
@@ -636,21 +838,80 @@ private:
         // 加菜需要订单号、菜品编号和数量；库存不足等规则由后端判断。
         int orderId = selectedOrderId();
         if (orderId < 0) return;
-        int dishId = QInputDialog::getInt(this, QString::fromUtf8("加菜"), QString::fromUtf8("菜品编号"), 1001, 1, 999999);
-        int quantity = QInputDialog::getInt(this, QString::fromUtf8("加菜"), QString::fromUtf8("数量"), 1, 1, 999999);
+
+        const std::vector<Backend::Dish>& dishes = backend_.dishes();
+        if (dishes.empty()) {
+            QMessageBox::information(this, QString::fromUtf8("加菜"), QString::fromUtf8("当前没有可选菜品。"));
+            return;
+        }
+
+        QDialog dialog(this);
+        dialog.setWindowTitle(QString::fromUtf8("加菜"));
+        QFormLayout form(&dialog);
+        QComboBox dishCombo;
+        for (size_t i = 0; i < dishes.size(); ++i) {
+            if (dishes[i].stock <= 0) {
+                continue;
+            }
+            QString text = QString::fromUtf8("%1  库存:%2  单价:%3")
+                .arg(qs(dishes[i].name))
+                .arg(dishes[i].stock)
+                .arg(qs(Backend::RestaurantBackend::money(dishes[i].price)));
+            dishCombo.addItem(text, dishes[i].id);
+        }
+        if (dishCombo.count() == 0) {
+            QMessageBox::information(this, QString::fromUtf8("加菜"), QString::fromUtf8("当前没有库存充足的菜品。"));
+            return;
+        }
+        QSpinBox quantity;
+        quantity.setRange(1, 999999);
+        QPushButton ok(QString::fromUtf8("加入订单"));
+        form.addRow(QString::fromUtf8("菜品"), &dishCombo);
+        form.addRow(QString::fromUtf8("数量"), &quantity);
+        form.addRow(&ok);
+        connect(&ok, &QPushButton::clicked, &dialog, &QDialog::accept);
+        if (dialog.exec() != QDialog::Accepted) return;
+
+        int dishId = dishCombo.currentData().toInt();
         std::string error;
-        if (!backend_.addDishToOrder(orderId, dishId, quantity, error)) showBackendError(error);
+        if (!backend_.addDishToOrder(orderId, dishId, quantity.value(), error)) showBackendError(error);
         refreshAll();
+        selectOrderById(orderId);
     }
 
     void returnDishFromOrder() {
         // 退菜会恢复库存并重新计算订单金额。
         int orderId = selectedOrderId();
         if (orderId < 0) return;
-        int dishId = QInputDialog::getInt(this, QString::fromUtf8("退菜"), QString::fromUtf8("菜品编号"), 1001, 1, 999999);
-        int quantity = QInputDialog::getInt(this, QString::fromUtf8("退菜"), QString::fromUtf8("数量"), 1, 1, 999999);
+        int itemRow = selectedRow(orderItemsTable_);
+        if (itemRow < 0 || orderItemsTable_->item(itemRow, 0) == 0 || orderItemsTable_->item(itemRow, 2) == 0) {
+            QMessageBox::information(this, QString::fromUtf8("退菜"), QString::fromUtf8("请先选择要退的订单明细。"));
+            return;
+        }
+        int dishId = orderItemsTable_->item(itemRow, 0)->text().toInt();
+        int maxQuantity = orderItemsTable_->item(itemRow, 2)->text().toInt();
+        int quantity = QInputDialog::getInt(this, QString::fromUtf8("退菜"), QString::fromUtf8("退菜数量"), 1, 1, maxQuantity);
         std::string error;
         if (!backend_.returnDish(orderId, dishId, quantity, error)) showBackendError(error);
+        refreshAll();
+        selectOrderById(orderId);
+    }
+
+    void markSelectedOrderWaitPay() {
+        int tableId = selectedOrderTableId(QString::fromUtf8("待结账"));
+        if (tableId < 0) return;
+        int orderId = selectedOrderId();
+        std::string error;
+        if (!backend_.markWaitPay(tableId, error)) showBackendError(error);
+        refreshAll();
+        selectOrderById(orderId);
+    }
+
+    void checkoutSelectedOrder() {
+        int tableId = selectedOrderTableId(QString::fromUtf8("结账"));
+        if (tableId < 0) return;
+        std::string error;
+        if (!backend_.checkout(tableId, error)) showBackendError(error);
         refreshAll();
     }
 

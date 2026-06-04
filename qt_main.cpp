@@ -21,21 +21,28 @@
 #include <QtWidgets/QVBoxLayout>
 #include <QtCore/QDir>
 
+// Qt 前端实现文件。
+// 这个文件只负责界面、输入弹窗、按钮事件和表格刷新；
+// 具体业务规则全部交给 RestaurantBackend，保持前后端分离。
 namespace {
+    // std::string -> QString。后端统一使用 UTF-8 字符串，Qt 显示前转成 QString。
     QString qs(const std::string& value) {
         return QString::fromUtf8(value.c_str());
     }
 
+    // QString -> std::string。前端输入框的内容传给后端前统一转成 UTF-8。
     std::string ss(const QString& value) {
         return value.toUtf8().constData();
     }
 
+    // 创建只读表格单元格，避免用户直接在表格里改数据而绕过后端校验。
     QTableWidgetItem* item(const QString& text) {
         QTableWidgetItem* cell = new QTableWidgetItem(text);
         cell->setFlags(cell->flags() ^ Qt::ItemIsEditable);
         return cell;
     }
 
+    // 返回当前表格选中的第一行。所有“修改/删除/加菜”等操作都依赖这个工具函数。
     int selectedRow(QTableWidget* table) {
         QList<QTableWidgetSelectionRange> ranges = table->selectedRanges();
         if (ranges.isEmpty()) {
@@ -45,9 +52,12 @@ namespace {
     }
 }
 
+// 主窗口负责把登录页、工作页和所有业务操作串起来。
+// 它持有一个后端对象 backend_，界面事件只调用后端公开接口，不直接改数据文件。
 class MainWindow : public QMainWindow {
 public:
     MainWindow() {
+        // 启动时先加载数据，再搭建页面；页面刷新时会直接读取 backend_ 内存数据。
         backend_.load();
         stack_ = new QStackedWidget(this);
         setCentralWidget(stack_);
@@ -59,20 +69,31 @@ public:
     }
 
 private:
+    // 后端实例：保存当前内存数据，负责所有业务规则和持久化。
     Backend::RestaurantBackend backend_;
+
+    // 页面容器。stack_ 用于在登录页和工作页之间切换。
     QStackedWidget* stack_ = 0;
     QWidget* loginPage_ = 0;
     QWidget* workPage_ = 0;
+
+    // 登录页控件。
     QComboBox* roleCombo_ = 0;
     QLineEdit* usernameEdit_ = 0;
     QLineEdit* passwordEdit_ = 0;
+
+    // 工作页顶部和标签页。
     QLabel* currentUserLabel_ = 0;
     QTabWidget* tabs_ = 0;
+
+    // 各业务表格。表格只负责展示，真实数据始终以 backend_ 为准。
     QTableWidget* dishesTable_ = 0;
     QTableWidget* tablesTable_ = 0;
     QTableWidget* ordersTable_ = 0;
     QTableWidget* orderItemsTable_ = 0;
     QTableWidget* usersTable_ = 0;
+
+    // 这些按钮只有管理员可用，登录成功后由 applyPermissions() 统一控制。
     QPushButton* addUserButton_ = 0;
     QPushButton* editUserButton_ = 0;
     QPushButton* deleteUserButton_ = 0;
@@ -83,11 +104,13 @@ private:
     QPushButton* editTableButton_ = 0;
     QPushButton* deleteTableButton_ = 0;
 
+    // 当前登录用户信息。业务操作需要知道当前角色和服务员账号。
     QString currentRole_;
     QString currentUsername_;
     QString currentDisplayName_;
 
     void buildLoginPage() {
+        // 登录页只收集角色、账号、密码；是否能登录由后端 login() 判断。
         loginPage_ = new QWidget;
         QVBoxLayout* outer = new QVBoxLayout(loginPage_);
         outer->setContentsMargins(320, 120, 320, 120);
@@ -113,6 +136,7 @@ private:
         form->addRow(QString::fromUtf8("密码"), passwordEdit_);
 
         QPushButton* loginButton = new QPushButton(QString::fromUtf8("登录"));
+        // 点击登录或在密码框按回车，走同一套登录逻辑。
         connect(loginButton, &QPushButton::clicked, this, [this]() { login(); });
         connect(passwordEdit_, &QLineEdit::returnPressed, this, [this]() { login(); });
 
@@ -124,6 +148,7 @@ private:
     }
 
     void buildWorkPage() {
+        // 工作页由顶部用户信息栏和下方业务标签页组成。
         workPage_ = new QWidget;
         QVBoxLayout* root = new QVBoxLayout(workPage_);
 
@@ -151,6 +176,7 @@ private:
     }
 
     QWidget* buildDishesTab() {
+        // 菜品页：管理员维护菜品，服务员也可以从这里向选中订单加菜。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
         dishesTable_ = new QTableWidget;
@@ -183,6 +209,7 @@ private:
     }
 
     QWidget* buildTablesTab() {
+        // 餐桌页：展示桌台状态，也是开台、待结账、结账流程的入口。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
         tablesTable_ = new QTableWidget;
@@ -221,6 +248,7 @@ private:
     }
 
     QWidget* buildOrdersTab() {
+        // 订单页：上方显示订单主表，下方显示当前选中订单的明细。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
 
@@ -263,6 +291,7 @@ private:
     }
 
     QWidget* buildUsersTab() {
+        // 用户页只给管理员使用；服务员登录后整个标签页会被禁用。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
         usersTable_ = new QTableWidget;
@@ -291,6 +320,7 @@ private:
     }
 
     void login() {
+        // 登录时只把输入交给后端校验；前端不直接判断账号密码是否正确。
         std::string display;
         std::string role = ss(roleCombo_->currentData().toString());
         bool ok = backend_.login(role, ss(usernameEdit_->text()), ss(passwordEdit_->text()), &display);
@@ -302,6 +332,7 @@ private:
         currentRole_ = roleCombo_->currentData().toString();
         currentUsername_ = usernameEdit_->text();
         currentDisplayName_ = qs(display);
+        // 登录成功后记录当前用户，并根据角色刷新权限和所有表格。
         currentUserLabel_->setText(QString::fromUtf8("当前用户：%1（%2）")
             .arg(currentDisplayName_, qs(Backend::RestaurantBackend::roleName(role))));
         applyPermissions();
@@ -310,6 +341,7 @@ private:
     }
 
     void applyPermissions() {
+        // 管理员拥有资料维护权限；服务员只能做点餐、退菜、待结账和结账。
         bool admin = currentRole_ == "admin";
         addUserButton_->setEnabled(admin);
         editUserButton_->setEnabled(admin);
@@ -324,6 +356,7 @@ private:
     }
 
     void refreshAll() {
+        // 每次业务操作后统一刷新所有表格，避免某个页面还显示旧状态。
         refreshDishes();
         refreshTables();
         refreshOrders();
@@ -332,6 +365,7 @@ private:
     }
 
     void refreshDishes() {
+        // 用后端菜品列表重建菜品表格；表格内容不作为真实数据源。
         const std::vector<Backend::Dish>& dishes = backend_.dishes();
         dishesTable_->setRowCount(static_cast<int>(dishes.size()));
         for (int row = 0; row < static_cast<int>(dishes.size()); ++row) {
@@ -346,6 +380,7 @@ private:
     }
 
     void refreshTables() {
+        // 餐桌金额和状态由后端维护，前端只负责格式化展示。
         const std::vector<Backend::Table>& tables = backend_.tables();
         tablesTable_->setRowCount(static_cast<int>(tables.size()));
         for (int row = 0; row < static_cast<int>(tables.size()); ++row) {
@@ -359,6 +394,7 @@ private:
     }
 
     void refreshOrders() {
+        // 订单表展示主表信息，具体菜品明细由 refreshOrderItems() 单独刷新。
         const std::vector<Backend::Order>& orders = backend_.orders();
         ordersTable_->setRowCount(static_cast<int>(orders.size()));
         for (int row = 0; row < static_cast<int>(orders.size()); ++row) {
@@ -373,6 +409,7 @@ private:
     }
 
     void refreshUsers() {
+        // 用户表包含密码字段，这是课程演示版；真实系统不应明文展示密码。
         const std::vector<Backend::User>& users = backend_.users();
         usersTable_->setRowCount(static_cast<int>(users.size()));
         for (int row = 0; row < static_cast<int>(users.size()); ++row) {
@@ -385,6 +422,7 @@ private:
     }
 
     void refreshOrderItems() {
+        // 明细表跟随订单表当前选中行变化；没选中订单时清空明细。
         int row = selectedRow(ordersTable_);
         if (row < 0 || ordersTable_->item(row, 0) == 0) {
             orderItemsTable_->setRowCount(0);
@@ -410,6 +448,7 @@ private:
     }
 
     int selectedInt(QTableWidget* table, int column, const QString& title) {
+        // 从指定表格的选中行读取整数主键；没有选择时给用户提示。
         int row = selectedRow(table);
         if (row < 0 || table->item(row, column) == 0) {
             QMessageBox::information(this, title, QString::fromUtf8("请先选择一行。"));
@@ -419,10 +458,12 @@ private:
     }
 
     void showBackendError(const std::string& error) {
+        // 后端已经生成可读错误信息，前端只负责弹窗展示。
         QMessageBox::warning(this, QString::fromUtf8("操作失败"), qs(error));
     }
 
     void editDish(bool existing) {
+        // existing=false 表示新增；existing=true 表示根据当前选中行修改。
         Backend::Dish dish;
         if (existing) {
             int row = selectedRow(dishesTable_);
@@ -438,6 +479,7 @@ private:
             dish.sold = dishesTable_->item(row, 5)->text().toInt();
         }
 
+        // 用一个临时 QDialog 收集菜品字段，点击确定后再交给后端保存。
         QDialog dialog(this);
         dialog.setWindowTitle(existing ? QString::fromUtf8("修改菜品") : QString::fromUtf8("新增菜品"));
         QFormLayout form(&dialog);
@@ -462,12 +504,14 @@ private:
         dish.price = price.value();
         dish.stock = stock.value();
         std::string error;
+        // 前端不直接改 dishes_，只调用后端 add/update，保证规则和保存逻辑统一。
         bool okResult = existing ? backend_.updateDish(dish, error) : backend_.addDish(dish, error);
         if (!okResult) showBackendError(error);
         refreshAll();
     }
 
     void deleteDish() {
+        // 删除前只取菜品编号，是否允许删除由后端检查未结账订单引用。
         int id = selectedInt(dishesTable_, 0, QString::fromUtf8("删除菜品"));
         if (id < 0) return;
         std::string error;
@@ -476,6 +520,7 @@ private:
     }
 
     void editTable(bool existing) {
+        // 餐桌编辑目前只处理桌号和容量，状态字段由开台/结账流程维护。
         Backend::Table table;
         if (existing) {
             int row = selectedRow(tablesTable_);
@@ -487,6 +532,7 @@ private:
             table.capacity = tablesTable_->item(row, 1)->text().toInt();
         }
 
+        // 桌号新增后不可在修改流程里编辑，避免破坏订单和餐桌的关联。
         QDialog dialog(this);
         dialog.setWindowTitle(existing ? QString::fromUtf8("修改餐桌") : QString::fromUtf8("新增餐桌"));
         QFormLayout form(&dialog);
@@ -508,6 +554,7 @@ private:
     }
 
     void deleteTable() {
+        // 后端会拒绝删除正在使用或待结账的餐桌。
         int id = selectedInt(tablesTable_, 0, QString::fromUtf8("删除餐桌"));
         if (id < 0) return;
         std::string error;
@@ -516,6 +563,7 @@ private:
     }
 
     void editUser(bool existing) {
+        // 用户编辑只对管理员开放；服务员登录时用户标签页会被禁用。
         Backend::User user;
         if (existing) {
             int row = selectedRow(usersTable_);
@@ -529,6 +577,7 @@ private:
             user.name = ss(usersTable_->item(row, 3)->text());
         }
 
+        // 角色使用下拉框，避免手写字符串导致 role 值不合法。
         QDialog dialog(this);
         dialog.setWindowTitle(existing ? QString::fromUtf8("修改用户") : QString::fromUtf8("新增用户"));
         QFormLayout form(&dialog);
@@ -557,6 +606,7 @@ private:
     }
 
     void deleteUser() {
+        // 删除用户需要当前选中行；最后一个管理员的保护由后端完成。
         int row = selectedRow(usersTable_);
         if (row < 0) {
             QMessageBox::information(this, QString::fromUtf8("删除用户"), QString::fromUtf8("请先选择用户。"));
@@ -568,6 +618,7 @@ private:
     }
 
     void openSelectedTable() {
+        // 开台需要先选中餐桌；后端会创建订单并把餐桌状态改为使用中。
         int tableId = selectedInt(tablesTable_, 0, QString::fromUtf8("开台"));
         if (tableId < 0) return;
         int orderId = 0;
@@ -577,10 +628,12 @@ private:
     }
 
     int selectedOrderId() {
+        // 所有订单操作都基于订单表当前选中的订单号。
         return selectedInt(ordersTable_, 0, QString::fromUtf8("订单操作"));
     }
 
     void addDishToSelectedOrder() {
+        // 加菜需要订单号、菜品编号和数量；库存不足等规则由后端判断。
         int orderId = selectedOrderId();
         if (orderId < 0) return;
         int dishId = QInputDialog::getInt(this, QString::fromUtf8("加菜"), QString::fromUtf8("菜品编号"), 1001, 1, 999999);
@@ -591,6 +644,7 @@ private:
     }
 
     void returnDishFromOrder() {
+        // 退菜会恢复库存并重新计算订单金额。
         int orderId = selectedOrderId();
         if (orderId < 0) return;
         int dishId = QInputDialog::getInt(this, QString::fromUtf8("退菜"), QString::fromUtf8("菜品编号"), 1001, 1, 999999);
@@ -601,6 +655,7 @@ private:
     }
 
     void markSelectedTableWaitPay() {
+        // 待结账按餐桌操作，因为收银场景通常先看桌台。
         int tableId = selectedInt(tablesTable_, 0, QString::fromUtf8("待结账"));
         if (tableId < 0) return;
         std::string error;
@@ -609,6 +664,7 @@ private:
     }
 
     void checkoutSelectedTable() {
+        // 结账成功后后端会释放餐桌，订单保留为历史记录。
         int tableId = selectedInt(tablesTable_, 0, QString::fromUtf8("结账"));
         if (tableId < 0) return;
         std::string error;
@@ -617,6 +673,7 @@ private:
     }
 
     void cancelSelectedOrder() {
+        // 取消订单会退回已点菜品库存，并在必要时释放关联餐桌。
         int orderId = selectedOrderId();
         if (orderId < 0) return;
         std::string error;
@@ -627,6 +684,7 @@ private:
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
+    // exe 位于 dist/，数据文件放在项目根目录；启动时把后端数据目录切到 dist 的上一级。
     QDir dataDir(QApplication::applicationDirPath());
     dataDir.cdUp();
     Backend::RestaurantBackend::setDataDirectory(dataDir.absolutePath().toStdString());

@@ -1,0 +1,36 @@
+# Build outputs
+build_qt/
+dist/
+output/
+release_portable/
+
+# Windows binaries and deployed Qt runtime files
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.obj
+*.o
+
+# Qt deployment plugin folders if windeployqt is run in the project root
+generic/
+iconengines/
+imageformats/
+networkinformation/
+platforms/
+styles/
+tls/
+translations/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Local editor/system files
+.DS_Store
+Thumbs.db
+
+# Local demo recording
+VIDEO1.mp4

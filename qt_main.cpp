@@ -51,7 +51,9 @@ namespace {
         table->setSelectionBehavior(QAbstractItemView::SelectRows);
         table->setSelectionMode(QAbstractItemView::SingleSelection);
         table->setAlternatingRowColors(true);
-        table->setShowGrid(false);
+        table->setShowGrid(true);
+        table->setGridStyle(Qt::SolidLine);
+        table->verticalHeader()->setDefaultSectionSize(34);
         table->verticalHeader()->setVisible(false);
         table->horizontalHeader()->setDefaultAlignment(Qt::AlignCenter);
         table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
@@ -59,15 +61,26 @@ namespace {
             "QTableWidget {"
             "  background: #ffffff;"
             "  alternate-background-color: #f8fafc;"
+            "  color: #111827;"
             "  border: 1px solid #d7dee8;"
             "  border-radius: 6px;"
+            "  gridline-color: #e5eaf1;"
             "  outline: 0;"
             "}"
             "QTableWidget::item {"
+            "  color: #111827;"
             "  padding: 6px;"
             "  border: 0;"
             "}"
+            "QTableWidget::item:alternate {"
+            "  color: #111827;"
+            "  background: #f8fafc;"
+            "}"
             "QTableWidget::item:selected {"
+            "  background: #cfe4ff;"
+            "  color: #111827;"
+            "}"
+            "QTableWidget::item:selected:!active {"
             "  background: #dbeafe;"
             "  color: #111827;"
             "}"
@@ -77,10 +90,16 @@ namespace {
             "}"
             "QHeaderView::section {"
             "  background: #edf2f7;"
+            "  color: #111827;"
             "  border: 0;"
             "  border-right: 1px solid #d7dee8;"
+            "  border-bottom: 1px solid #d7dee8;"
             "  padding: 7px;"
             "  font-weight: 600;"
+            "}"
+            "QTableCornerButton::section {"
+            "  background: #edf2f7;"
+            "  border: 0;"
             "}"
         );
     }

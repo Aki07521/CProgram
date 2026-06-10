@@ -21,7 +21,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-windeployqt dist\restaurant_qt.exe
+windeployqt restaurant_qt.exe
 
 echo.
-echo Qt build succeeded: dist\restaurant_qt.exe
+echo Qt build succeeded: restaurant_qt.exe

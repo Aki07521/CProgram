@@ -20,12 +20,101 @@
 #include <QtWidgets/QTableWidget>
 #include <QtWidgets/QTabWidget>
 #include <QtWidgets/QVBoxLayout>
-#include <QtCore/QDir>
 
 // Qt 前端实现文件。
 // 这个文件只负责界面、输入弹窗、按钮事件和表格刷新；
 // 具体业务规则全部交给 RestaurantBackend，保持前后端分离。
 namespace {
+    QString appStyleSheet() {
+        return
+            "QWidget {"
+            "  background: #0b0f14;"
+            "  color: #f8fafc;"
+            "  font-size: 14px;"
+            "}"
+            "QMainWindow, QStackedWidget {"
+            "  background: #0b0f14;"
+            "}"
+            "QLabel {"
+            "  background: transparent;"
+            "  color: #f8fafc;"
+            "}"
+            "QGroupBox {"
+            "  background: #111827;"
+            "  border: 1px solid #4b5563;"
+            "  border-radius: 12px;"
+            "  margin-top: 14px;"
+            "  padding: 18px;"
+            "  color: #f8fafc;"
+            "}"
+            "QGroupBox::title {"
+            "  subcontrol-origin: margin;"
+            "  left: 14px;"
+            "  padding: 0 6px;"
+            "  color: #f8fafc;"
+            "}"
+            "QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {"
+            "  background: #0f172a;"
+            "  color: #ffffff;"
+            "  selection-background-color: #2563eb;"
+            "  border: 1px solid #475569;"
+            "  border-radius: 8px;"
+            "  min-height: 34px;"
+            "  padding: 4px 10px;"
+            "}"
+            "QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {"
+            "  border: 1px solid #60a5fa;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "  background: #111827;"
+            "  color: #ffffff;"
+            "  selection-background-color: #2563eb;"
+            "  selection-color: #ffffff;"
+            "}"
+            "QPushButton {"
+            "  background: #1f2937;"
+            "  color: #ffffff;"
+            "  border: 1px solid #4b5563;"
+            "  border-radius: 8px;"
+            "  min-height: 36px;"
+            "  min-width: 104px;"
+            "  padding: 6px 16px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #374151;"
+            "  border-color: #60a5fa;"
+            "}"
+            "QPushButton:pressed {"
+            "  background: #2563eb;"
+            "}"
+            "QPushButton:disabled {"
+            "  color: #64748b;"
+            "  background: #111827;"
+            "  border-color: #1f2937;"
+            "}"
+            "QTabWidget::pane {"
+            "  background: #0f172a;"
+            "  border: 1px solid #334155;"
+            "  border-radius: 10px;"
+            "  top: -1px;"
+            "}"
+            "QTabBar::tab {"
+            "  background: #111827;"
+            "  color: #d1d5db;"
+            "  border: 1px solid #334155;"
+            "  padding: 10px 20px;"
+            "  min-width: 76px;"
+            "}"
+            "QTabBar::tab:selected {"
+            "  background: #2563eb;"
+            "  color: #ffffff;"
+            "}"
+            "QTabBar::tab:hover {"
+            "  background: #1f2937;"
+            "  color: #ffffff;"
+            "}";
+    }
+
     // std::string -> QString。后端统一使用 UTF-8 字符串，Qt 显示前转成 QString。
     QString qs(const std::string& value) {
         return QString::fromUtf8(value.c_str());
@@ -59,46 +148,46 @@ namespace {
         table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
         table->setStyleSheet(
             "QTableWidget {"
-            "  background: #ffffff;"
-            "  alternate-background-color: #f8fafc;"
-            "  color: #111827;"
-            "  border: 1px solid #d7dee8;"
-            "  border-radius: 6px;"
-            "  gridline-color: #e5eaf1;"
+            "  background: #0f172a;"
+            "  alternate-background-color: #111827;"
+            "  color: #ffffff;"
+            "  border: 1px solid #334155;"
+            "  border-radius: 8px;"
+            "  gridline-color: #1f2937;"
             "  outline: 0;"
             "}"
             "QTableWidget::item {"
-            "  color: #111827;"
+            "  color: #ffffff;"
             "  padding: 6px;"
             "  border: 0;"
             "}"
             "QTableWidget::item:alternate {"
-            "  color: #111827;"
-            "  background: #f8fafc;"
+            "  color: #ffffff;"
+            "  background: #111827;"
             "}"
             "QTableWidget::item:selected {"
-            "  background: #cfe4ff;"
-            "  color: #111827;"
+            "  background: #2563eb;"
+            "  color: #ffffff;"
             "}"
             "QTableWidget::item:selected:!active {"
-            "  background: #dbeafe;"
-            "  color: #111827;"
+            "  background: #1d4ed8;"
+            "  color: #ffffff;"
             "}"
             "QTableWidget::item:focus {"
             "  border: 0;"
             "  outline: none;"
             "}"
             "QHeaderView::section {"
-            "  background: #edf2f7;"
-            "  color: #111827;"
+            "  background: #1f2937;"
+            "  color: #ffffff;"
             "  border: 0;"
-            "  border-right: 1px solid #d7dee8;"
-            "  border-bottom: 1px solid #d7dee8;"
+            "  border-right: 1px solid #334155;"
+            "  border-bottom: 1px solid #334155;"
             "  padding: 7px;"
             "  font-weight: 600;"
             "}"
             "QTableCornerButton::section {"
-            "  background: #edf2f7;"
+            "  background: #1f2937;"
             "  border: 0;"
             "}"
         );
@@ -126,8 +215,9 @@ public:
         buildLoginPage();
         buildWorkPage();
         stack_->setCurrentWidget(loginPage_);
-        resize(1180, 760);
-        setWindowTitle(QString::fromUtf8("中小饭店点餐管理系统 - Qt 前端"));
+        resize(1120, 720);
+        setMinimumSize(960, 640);
+        setWindowTitle(QString::fromUtf8("中小饭店点餐管理系统"));
     }
 
 private:
@@ -177,15 +267,21 @@ private:
         // 登录页只收集角色、账号、密码；是否能登录由后端 login() 判断。
         loginPage_ = new QWidget;
         QVBoxLayout* outer = new QVBoxLayout(loginPage_);
-        outer->setContentsMargins(320, 120, 320, 120);
+        outer->setContentsMargins(24, 24, 24, 24);
+        outer->setAlignment(Qt::AlignCenter);
 
         QGroupBox* box = new QGroupBox(QString::fromUtf8("系统登录"));
+        box->setFixedWidth(520);
+        box->setMaximumHeight(420);
         QVBoxLayout* boxLayout = new QVBoxLayout(box);
+        boxLayout->setContentsMargins(28, 30, 28, 28);
+        boxLayout->setSpacing(18);
         QLabel* title = new QLabel(QString::fromUtf8("中小饭店点餐管理系统"));
         QFont titleFont = title->font();
-        titleFont.setPointSize(20);
+        titleFont.setPointSize(22);
         titleFont.setBold(true);
         title->setFont(titleFont);
+        title->setAlignment(Qt::AlignCenter);
 
         roleCombo_ = new QComboBox;
         roleCombo_->addItem(QString::fromUtf8("管理员"), "admin");
@@ -195,19 +291,26 @@ private:
         passwordEdit_->setEchoMode(QLineEdit::Password);
 
         QFormLayout* form = new QFormLayout;
+        form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        form->setFormAlignment(Qt::AlignHCenter);
+        form->setHorizontalSpacing(12);
+        form->setVerticalSpacing(12);
         form->addRow(QString::fromUtf8("角色"), roleCombo_);
         form->addRow(QString::fromUtf8("账号"), usernameEdit_);
         form->addRow(QString::fromUtf8("密码"), passwordEdit_);
 
         QPushButton* loginButton = new QPushButton(QString::fromUtf8("登录"));
+        loginButton->setMinimumHeight(42);
         // 点击登录或在密码框按回车，走同一套登录逻辑。
         connect(loginButton, &QPushButton::clicked, this, [this]() { login(); });
         connect(passwordEdit_, &QLineEdit::returnPressed, this, [this]() { login(); });
 
         boxLayout->addWidget(title);
+        boxLayout->addSpacing(12);
         boxLayout->addLayout(form);
+        boxLayout->addSpacing(8);
         boxLayout->addWidget(loginButton);
-        outer->addWidget(box);
+        outer->addWidget(box, 0, Qt::AlignCenter);
         stack_->addWidget(loginPage_);
     }
 
@@ -215,8 +318,11 @@ private:
         // 工作页由顶部用户信息栏和下方业务标签页组成。
         workPage_ = new QWidget;
         QVBoxLayout* root = new QVBoxLayout(workPage_);
+        root->setContentsMargins(16, 14, 16, 16);
+        root->setSpacing(12);
 
         QHBoxLayout* top = new QHBoxLayout;
+        top->setSpacing(12);
         currentUserLabel_ = new QLabel;
         QPushButton* logout = new QPushButton(QString::fromUtf8("退出登录"));
         connect(logout, &QPushButton::clicked, this, [this]() {
@@ -244,6 +350,8 @@ private:
         // 菜品页：管理员维护菜品，服务员也可以从这里向选中订单加菜。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(14, 14, 14, 14);
+        layout->setSpacing(12);
         dishesTable_ = new QTableWidget;
         dishesTable_->setColumnCount(6);
         dishesTable_->setHorizontalHeaderLabels(QStringList()
@@ -252,6 +360,7 @@ private:
         configureTable(dishesTable_);
 
         QHBoxLayout* buttons = new QHBoxLayout;
+        buttons->setSpacing(10);
         addDishButton_ = new QPushButton(QString::fromUtf8("新增菜品"));
         editDishButton_ = new QPushButton(QString::fromUtf8("修改菜品"));
         deleteDishButton_ = new QPushButton(QString::fromUtf8("删除菜品"));
@@ -272,6 +381,8 @@ private:
         // 餐桌页：展示桌台状态，也是开台、待结账、结账流程的入口。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(14, 14, 14, 14);
+        layout->setSpacing(12);
         tablesTable_ = new QTableWidget;
         tablesTable_->setColumnCount(5);
         tablesTable_->setHorizontalHeaderLabels(QStringList()
@@ -280,6 +391,7 @@ private:
         configureTable(tablesTable_);
 
         QHBoxLayout* buttons = new QHBoxLayout;
+        buttons->setSpacing(10);
         addTableButton_ = new QPushButton(QString::fromUtf8("新增餐桌"));
         editTableButton_ = new QPushButton(QString::fromUtf8("修改容量"));
         deleteTableButton_ = new QPushButton(QString::fromUtf8("删除餐桌"));
@@ -306,6 +418,8 @@ private:
         // 订单页：上方显示订单主表，下方显示当前选中订单的明细。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(14, 14, 14, 14);
+        layout->setSpacing(12);
 
         ordersTable_ = new QTableWidget;
         ordersTable_->setColumnCount(6);
@@ -324,6 +438,7 @@ private:
         connect(ordersTable_, &QTableWidget::itemSelectionChanged, this, [this]() { refreshOrderItems(); });
 
         QHBoxLayout* buttons = new QHBoxLayout;
+        buttons->setSpacing(10);
         QPushButton* addDish = new QPushButton(QString::fromUtf8("加菜"));
         QPushButton* returnDish = new QPushButton(QString::fromUtf8("退菜"));
         QPushButton* waitPay = new QPushButton(QString::fromUtf8("设为待结账"));
@@ -353,6 +468,8 @@ private:
         // 管理员数据页：集中查看经营概览、订单状态和菜品销售数据。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(14, 14, 14, 14);
+        layout->setSpacing(12);
 
         QLabel* summaryTitle = new QLabel(QString::fromUtf8("经营数据总览"));
         QFont titleFont = summaryTitle->font();
@@ -387,6 +504,8 @@ private:
         // 用户页只给管理员使用；服务员登录后整个标签页会被禁用。
         QWidget* page = new QWidget;
         QVBoxLayout* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(14, 14, 14, 14);
+        layout->setSpacing(12);
         usersTable_ = new QTableWidget;
         usersTable_->setColumnCount(4);
         usersTable_->setHorizontalHeaderLabels(QStringList()
@@ -394,6 +513,7 @@ private:
         configureTable(usersTable_);
 
         QHBoxLayout* buttons = new QHBoxLayout;
+        buttons->setSpacing(10);
         addUserButton_ = new QPushButton(QString::fromUtf8("新增用户"));
         editUserButton_ = new QPushButton(QString::fromUtf8("修改用户"));
         deleteUserButton_ = new QPushButton(QString::fromUtf8("删除用户"));
@@ -432,19 +552,21 @@ private:
     }
 
     void applyPermissions() {
-        // 管理员拥有资料维护权限；服务员只能做点餐、退菜、待结账和结账。
+        // 管理员和服务员看到不同入口；不再用“灰掉按钮”来区分身份。
         bool admin = currentRole_ == "admin";
-        addUserButton_->setEnabled(admin);
-        editUserButton_->setEnabled(admin);
-        deleteUserButton_->setEnabled(admin);
-        addDishButton_->setEnabled(admin);
-        editDishButton_->setEnabled(admin);
-        deleteDishButton_->setEnabled(admin);
-        addTableButton_->setEnabled(admin);
-        editTableButton_->setEnabled(admin);
-        deleteTableButton_->setEnabled(admin);
-        tabs_->setTabEnabled(3, admin);
-        tabs_->setTabEnabled(4, admin);
+        addUserButton_->setVisible(admin);
+        editUserButton_->setVisible(admin);
+        deleteUserButton_->setVisible(admin);
+        addDishButton_->setVisible(admin);
+        editDishButton_->setVisible(admin);
+        deleteDishButton_->setVisible(admin);
+        addTableButton_->setVisible(admin);
+        editTableButton_->setVisible(admin);
+        deleteTableButton_->setVisible(admin);
+
+        tabs_->setTabVisible(3, admin);
+        tabs_->setTabVisible(4, admin);
+        tabs_->setCurrentIndex(admin ? 0 : 1);
     }
 
     void refreshAll() {
@@ -964,10 +1086,10 @@ private:
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
-    // exe 位于 dist/，数据文件放在项目根目录；启动时把后端数据目录切到 dist 的上一级。
-    QDir dataDir(QApplication::applicationDirPath());
-    dataDir.cdUp();
-    Backend::RestaurantBackend::setDataDirectory(dataDir.absolutePath().toStdString());
+    QApplication::setStyle("Fusion");
+    app.setStyleSheet(appStyleSheet());
+    // exe 放在项目根目录，数据文件也在同一目录，直接使用程序所在目录。
+    Backend::RestaurantBackend::setDataDirectory(QApplication::applicationDirPath().toStdString());
     MainWindow window;
     window.show();
     return app.exec();

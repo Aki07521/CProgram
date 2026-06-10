@@ -21,7 +21,7 @@ build_qt.bat
 构建完成后运行：
 
 ```bat
-dist\restaurant_qt.exe
+restaurant_qt.exe
 ```
 
-`dist/`、`build_qt/`、Qt DLL 和插件目录都属于生成物，不纳入 git 管理。
+`build_qt/`、Qt DLL、Qt 插件目录和生成的 exe 都属于生成物，不纳入 git 管理。

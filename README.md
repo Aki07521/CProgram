@@ -27,3 +27,13 @@ run_qt.bat
 `restaurant_qt.exe` 会生成在项目根目录。Qt 运行库不再复制到项目目录，`run_qt.bat` 会在启动前临时设置 Qt 路径。
 
 `build_qt/`、Qt DLL、Qt 插件目录和生成的 exe 都属于生成物，不纳入 git 管理。
+
+## 便携发布
+
+如果要发给没有 Qt/MinGW 环境的电脑使用，在项目根目录运行：
+
+```bat
+package_portable.bat
+```
+
+脚本会生成 `release_portable/` 文件夹。把整个 `release_portable` 文件夹复制给别人，对方直接双击里面的 `restaurant_qt.exe` 即可运行。

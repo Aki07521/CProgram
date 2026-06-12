@@ -6,12 +6,14 @@
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QDoubleSpinBox>
 #include <QtWidgets/QFormLayout>
+#include <QtWidgets/QFrame>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QInputDialog>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QListView>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QPushButton>
@@ -25,6 +27,43 @@
 // 这个文件只负责界面、输入弹窗、按钮事件和表格刷新；
 // 具体业务规则全部交给 RestaurantBackend，保持前后端分离。
 namespace {
+    void configureComboBox(QComboBox* combo) {
+        QListView* view = new QListView(combo);
+        view->setFrameShape(QFrame::NoFrame);
+        view->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        view->setUniformItemSizes(true);
+        view->setSpacing(2);
+        view->setAttribute(Qt::WA_TranslucentBackground);
+        view->viewport()->setAttribute(Qt::WA_TranslucentBackground);
+        view->setStyleSheet(
+            "QListView {"
+            "  background: #151515;"
+            "  color: #ffffff;"
+            "  border: 1px solid #5a5a5a;"
+            "  border-radius: 12px;"
+            "  padding: 4px;"
+            "  outline: 0;"
+            "}"
+            "QListView::item {"
+            "  min-height: 30px;"
+            "  padding: 6px 10px;"
+            "  border-radius: 8px;"
+            "}"
+            "QListView::item:selected {"
+            "  background: #5a5a5a;"
+            "  color: #ffffff;"
+            "}"
+            "QListView::item:hover {"
+            "  background: #3a3a3a;"
+            "  color: #ffffff;"
+            "}"
+        );
+        combo->setView(view);
+        combo->setMaxVisibleItems(8);
+    }
+
     QString appStyleSheet() {
         return
             "QWidget {"
@@ -79,10 +118,20 @@ namespace {
             "  background: #151515;"
             "  color: #ffffff;"
             "  border: 1px solid #5a5a5a;"
-            "  border-radius: 10px;"
+            "  border-radius: 12px;"
+            "  padding: 4px;"
             "  outline: 0;"
             "  selection-background-color: #5a5a5a;"
             "  selection-color: #ffffff;"
+            "}"
+            "QComboBox QAbstractItemView::item {"
+            "  min-height: 30px;"
+            "  padding: 6px 10px;"
+            "  border-radius: 8px;"
+            "}"
+            "QComboBox QAbstractItemView::item:selected {"
+            "  background: #5a5a5a;"
+            "  color: #ffffff;"
             "}"
             "QPushButton {"
             "  background: #202020;"
@@ -301,6 +350,7 @@ private:
         roleCombo_ = new QComboBox;
         roleCombo_->addItem(QString::fromUtf8("管理员"), "admin");
         roleCombo_->addItem(QString::fromUtf8("服务员"), "waiter");
+        configureComboBox(roleCombo_);
         usernameEdit_ = new QLineEdit("admin");
         passwordEdit_ = new QLineEdit("123456");
         passwordEdit_->setEchoMode(QLineEdit::Password);
@@ -929,6 +979,7 @@ private:
         QLineEdit username(qs(user.username)); username.setEnabled(!existing);
         QLineEdit password(qs(user.password));
         QComboBox role; role.addItem(QString::fromUtf8("管理员"), "admin"); role.addItem(QString::fromUtf8("服务员"), "waiter");
+        configureComboBox(&role);
         role.setCurrentIndex(user.role == "waiter" ? 1 : 0);
         QLineEdit name(qs(user.name));
         QPushButton ok(QString::fromUtf8("确定"));
@@ -1019,6 +1070,7 @@ private:
             QMessageBox::information(this, QString::fromUtf8("加菜"), QString::fromUtf8("当前没有库存充足的菜品。"));
             return;
         }
+        configureComboBox(&dishCombo);
         QSpinBox quantity;
         quantity.setRange(1, 999999);
         QPushButton ok(QString::fromUtf8("加入订单"));

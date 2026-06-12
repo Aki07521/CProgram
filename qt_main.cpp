@@ -1,5 +1,7 @@
 #include "restaurant_backend.hpp"
 
+#include <QtGui/QPainterPath>
+#include <QtGui/QRegion>
 #include <QtWidgets/QAbstractItemView>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QComboBox>
@@ -27,6 +29,35 @@
 // 这个文件只负责界面、输入弹窗、按钮事件和表格刷新；
 // 具体业务规则全部交给 RestaurantBackend，保持前后端分离。
 namespace {
+    class RoundedComboBox : public QComboBox {
+    public:
+        explicit RoundedComboBox(QWidget* parent = 0) : QComboBox(parent) {}
+
+    protected:
+        void showPopup() override {
+            QComboBox::showPopup();
+            QWidget* popup = view() != 0 ? view()->window() : 0;
+            if (popup == 0) {
+                return;
+            }
+
+            popup->setAttribute(Qt::WA_TranslucentBackground, true);
+            popup->setAutoFillBackground(false);
+
+            QPainterPath path;
+            path.addRoundedRect(popup->rect().adjusted(0, 0, -1, -1), 12.0, 12.0);
+            popup->setMask(QRegion(path.toFillPolygon().toPolygon()));
+        }
+
+        void hidePopup() override {
+            QWidget* popup = view() != 0 ? view()->window() : 0;
+            if (popup != 0) {
+                popup->clearMask();
+            }
+            QComboBox::hidePopup();
+        }
+    };
+
     void configureComboBox(QComboBox* combo) {
         QListView* view = new QListView(combo);
         view->setFrameShape(QFrame::NoFrame);
@@ -348,7 +379,7 @@ private:
         title->setFont(titleFont);
         title->setAlignment(Qt::AlignCenter);
 
-        roleCombo_ = new QComboBox;
+        roleCombo_ = new RoundedComboBox;
         roleCombo_->addItem(QString::fromUtf8("管理员"), "admin");
         roleCombo_->addItem(QString::fromUtf8("服务员"), "waiter");
         configureComboBox(roleCombo_);
@@ -1023,7 +1054,7 @@ private:
         QFormLayout form(&dialog);
         QLineEdit username(qs(user.username)); username.setEnabled(!existing);
         QLineEdit password(qs(user.password));
-        QComboBox role; role.addItem(QString::fromUtf8("管理员"), "admin"); role.addItem(QString::fromUtf8("服务员"), "waiter");
+        RoundedComboBox role; role.addItem(QString::fromUtf8("管理员"), "admin"); role.addItem(QString::fromUtf8("服务员"), "waiter");
         configureComboBox(&role);
         role.setCurrentIndex(user.role == "waiter" ? 1 : 0);
         QLineEdit name(qs(user.name));
@@ -1100,7 +1131,7 @@ private:
         QDialog dialog(this);
         dialog.setWindowTitle(QString::fromUtf8("加菜"));
         QFormLayout form(&dialog);
-        QComboBox dishCombo;
+        RoundedComboBox dishCombo;
         for (size_t i = 0; i < dishes.size(); ++i) {
             if (dishes[i].stock <= 0) {
                 continue;

@@ -584,11 +584,8 @@ private:
         dataTools->setSpacing(10);
         clearHistoryButton_ = new QPushButton(QString::fromUtf8("清除历史数据"));
         clearHistoryButton_->setMinimumWidth(138);
-        QLabel* clearHint = new QLabel(QString::fromUtf8("清空订单、明细和销量统计；保留用户、菜品、库存和餐桌资料。"));
-        clearHint->setStyleSheet("color: #c6c6c6;");
         connect(clearHistoryButton_, &QPushButton::clicked, this, [this]() { clearHistoricalData(); });
         dataTools->addWidget(clearHistoryButton_);
-        dataTools->addWidget(clearHint);
         dataTools->addStretch();
 
         QLabel* dishTitle = new QLabel(QString::fromUtf8("菜品销量与库存"));

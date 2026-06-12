@@ -213,6 +213,36 @@ void RestaurantBackend::resetDemoData() {
     tables_.push_back(Table{5, 2, TableIdle, 0.0, 0});
 }
 
+bool RestaurantBackend::clearHistoricalData(std::string& error) {
+    error.clear();
+
+    // 历史清理不能影响正在营业的桌台；有未完成订单时先让管理员完成结账或取消。
+    for (size_t i = 0; i < orders_.size(); ++i) {
+        if (orders_[i].status == OrderActive || orders_[i].status == OrderWaitPay) {
+            error = "仍有进行中或待结账订单，请先结账或取消后再清除历史数据。";
+            return false;
+        }
+    }
+
+    orders_.clear();
+    nextOrderId_ = 1;
+
+    // 菜品库存属于当前资产，不随历史清理恢复；这里只重置经营统计中的销量。
+    for (size_t i = 0; i < dishes_.size(); ++i) {
+        dishes_[i].sold = 0;
+    }
+
+    // 正常情况下所有餐桌已经空闲；这里再同步一次，修复可能残留的旧状态。
+    for (size_t i = 0; i < tables_.size(); ++i) {
+        tables_[i].status = TableIdle;
+        tables_[i].currentAmount = 0.0;
+        tables_[i].activeOrderId = 0;
+    }
+
+    save();
+    return true;
+}
+
 bool RestaurantBackend::login(const std::string& role, const std::string& username,
                               const std::string& password, std::string* displayName) const {
     // 登录同时校验角色，避免服务员账号以管理员身份进入。

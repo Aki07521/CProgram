@@ -90,6 +90,9 @@ public:
     // 重置内存中的演示数据，不直接保存；调用方需要再调用 save()。
     void resetDemoData();
 
+    // 清除历史经营数据：删除订单和订单明细，并把销量统计归零；存在未完成订单时拒绝执行。
+    bool clearHistoricalData(std::string& error);
+
     // 登录校验。displayName 可选，用来把真实姓名返回给前端显示。
     bool login(const std::string& role, const std::string& username,
                const std::string& password, std::string* displayName = 0) const;

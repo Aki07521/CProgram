@@ -310,6 +310,7 @@ private:
     QTableWidget* usersTable_ = 0;
     QTableWidget* dataSummaryTable_ = 0;
     QTableWidget* dishStatsTable_ = 0;
+    QPushButton* clearHistoryButton_ = 0;
 
     // 这些按钮只有管理员可用，登录成功后由 applyPermissions() 统一控制。
     QPushButton* addUserButton_ = 0;
@@ -548,6 +549,17 @@ private:
             << QString::fromUtf8("指标") << QString::fromUtf8("数值"));
         configureTable(dataSummaryTable_);
 
+        QHBoxLayout* dataTools = new QHBoxLayout;
+        dataTools->setSpacing(10);
+        clearHistoryButton_ = new QPushButton(QString::fromUtf8("清除历史数据"));
+        clearHistoryButton_->setMinimumWidth(138);
+        QLabel* clearHint = new QLabel(QString::fromUtf8("清空订单、明细和销量统计；保留用户、菜品、库存和餐桌资料。"));
+        clearHint->setStyleSheet("color: #c6c6c6;");
+        connect(clearHistoryButton_, &QPushButton::clicked, this, [this]() { clearHistoricalData(); });
+        dataTools->addWidget(clearHistoryButton_);
+        dataTools->addWidget(clearHint);
+        dataTools->addStretch();
+
         QLabel* dishTitle = new QLabel(QString::fromUtf8("菜品销量与库存"));
         dishTitle->setFont(titleFont);
 
@@ -559,6 +571,7 @@ private:
         configureTable(dishStatsTable_);
 
         layout->addWidget(summaryTitle);
+        layout->addLayout(dataTools);
         layout->addWidget(dataSummaryTable_, 1);
         layout->addWidget(dishTitle);
         layout->addWidget(dishStatsTable_, 2);
@@ -628,6 +641,7 @@ private:
         addTableButton_->setVisible(admin);
         editTableButton_->setVisible(admin);
         deleteTableButton_->setVisible(admin);
+        clearHistoryButton_->setVisible(admin);
 
         tabs_->setTabVisible(3, admin);
         tabs_->setTabVisible(4, admin);
@@ -737,7 +751,7 @@ private:
 
         int totalSold = 0;
         QString topDish = QString::fromUtf8("暂无");
-        int topSold = -1;
+        int topSold = 0;
         for (size_t i = 0; i < dishes.size(); ++i) {
             totalSold += dishes[i].sold;
             if (dishes[i].sold > topSold) {
@@ -855,6 +869,37 @@ private:
     void showBackendError(const std::string& error) {
         // 后端已经生成可读错误信息，前端只负责弹窗展示。
         QMessageBox::warning(this, QString::fromUtf8("操作失败"), qs(error));
+    }
+
+    void clearHistoricalData() {
+        // 数据清理是管理员级别的高风险操作，即使按钮被隐藏，也在事件入口再做一次角色校验。
+        if (currentRole_ != "admin") {
+            QMessageBox::warning(this, QString::fromUtf8("权限不足"), QString::fromUtf8("只有管理员可以清除历史数据。"));
+            return;
+        }
+
+        const QString message = QString::fromUtf8(
+            "确认清除所有历史订单、订单明细和菜品销量统计吗？\n"
+            "该操作会保留用户、菜品、库存和餐桌基础资料。\n"
+            "如果仍有进行中或待结账订单，系统会自动拒绝清除。");
+        QMessageBox::StandardButton choice = QMessageBox::question(
+            this,
+            QString::fromUtf8("清除历史数据"),
+            message,
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (choice != QMessageBox::Yes) {
+            return;
+        }
+
+        std::string error;
+        if (!backend_.clearHistoricalData(error)) {
+            showBackendError(error);
+            return;
+        }
+
+        refreshAll();
+        QMessageBox::information(this, QString::fromUtf8("清除完成"), QString::fromUtf8("历史订单和统计数据已清除。"));
     }
 
     void editDish(bool existing) {
